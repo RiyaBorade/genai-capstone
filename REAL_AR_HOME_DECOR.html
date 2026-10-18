@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AntarAalay - REAL AR Home Decor Visualization</title>
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            overflow: hidden;
+            background: #000;
+        }
+        
+        .ar-controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px 20px;
+            border-radius: 15px;
+            display: flex;
+            gap: 10px;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+            flex-wrap: wrap;
+            max-width: 90%;
+            justify-content: center;
+        }
+        
+        .ar-btn {
+            background: #C6A75E;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex: 1;
+            min-width: 120px;
+        }
+        
+        .ar-btn:hover {
+            background: #B8941F;
+            transform: translateY(-2px);
+        }
+        
+        .room-info {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 12px;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+            max-width: 250px;
+        }
+        
+        .room-info h3 {
+            margin-bottom: 10px;
+            color: #C6A75E;
+            font-size: 16px;
+        }
+        
+        .room-info p {
+            margin: 5px 0;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .furniture-info {
+            position: fixed;
+            top: 160px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 12px;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+            max-width: 250px;
+        }
+        
+        .furniture-info h4 {
+            margin-bottom: 8px;
+            color: #C6A75E;
+            font-size: 14px;
+        }
+        
+        .furniture-info p {
+            margin: 3px 0;
+            font-size: 12px;
+            opacity: 0.9;
+        }
+        
+        .vastu-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 12px;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+            text-align: center;
+        }
+        
+        .vastu-indicator.excellent {
+            border: 2px solid #32CD32;
+        }
+        
+        .vastu-indicator.good {
+            border: 2px solid #FFD700;
+        }
+        
+        .vastu-indicator.poor {
+            border: 2px solid #FF6347;
+        }
+        
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+        
+        .loading.hidden {
+            display: none;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid #C6A75E;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .instructions {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            z-index: 1500;
+            max-width: 400px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+        
+        .instructions.hidden {
+            display: none;
+        }
+        
+        .instructions h2 {
+            margin-bottom: 20px;
+            color: #C6A75E;
+        }
+        
+        .instructions p {
+            margin: 10px 0;
+            line-height: 1.5;
+        }
+        
+        .instructions button {
+            background: #C6A75E;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        
+        .camera-preview {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <h2>🏠 Loading REAL AR Home Decor...</h2>
+        <p>Activating camera for room visualization</p>
+    </div>
+    
+    <!-- Instructions -->
+    <div id="instructions" class="instructions">
+        <h2>🏠 REAL AR Home Decor Setup</h2>
+        <p><strong>Step 1:</strong> Allow camera access</p>
+        <p><strong>Step 2:</strong> Point camera at your room</p>
+        <p><strong>Step 3:</strong> Tap to place furniture</p>
+        <p><strong>Step 4:</strong> Walk around to see placement</p>
+        <button onclick="startRealAR()">Start REAL AR Experience</button>
+    </div>
+    
+    <!-- Camera Preview -->
+    <video id="camera-preview" class="camera-preview" autoplay playsinline style="display: none;"></video>
+    
+    <!-- AR Scene -->
+    <a-scene 
+        id="ar-scene"
+        embedded 
+        arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3; trackingMethod: best;"
+        vr-mode-ui="enabled: false"
+        style="position: fixed; top: 0; left: 0; width: 100%; height: 100%;">
+        
+        <!-- Camera -->
+        <a-camera gps-camera rotation-reader></a-camera>
+        
+        <!-- Light -->
+        <a-light type="ambient" color="#404040"></a-light>
+        <a-light type="directional" position="0 1 0" color="#ffffff" intensity="0.5"></a-light>
+        
+        <!-- Living Room Furniture -->
+        <a-entity id="living-room" visible="false">
+            <!-- Sofa - Large seating furniture -->
+            <a-box 
+                id="sofa" 
+                position="0 0.5 -3" 
+                width="2" 
+                height="0.8" 
+                depth="0.8" 
+                color="#8B4513"
+                shadow>
+                <a-animation attribute="rotation" dur="10000" to="0 360 0" repeat="indefinite"></a-animation>
+            </a-box>
+            
+            <!-- Coffee Table -->
+            <a-box 
+                id="coffee-table" 
+                position="0 0.3 -2" 
+                width="1.2" 
+                height="0.6" 
+                depth="0.6" 
+                color="#D2691E"
+                shadow>
+            </a-box>
+            
+            <!-- TV Unit -->
+            <a-box 
+                id="tv-unit" 
+                position="0 1 -4" 
+                width="1.8" 
+                height="0.1" 
+                depth="0.3" 
+                color="#000000"
+                shadow>
+            </a-box>
+            
+            <!-- Bookshelf -->
+            <a-box 
+                id="bookshelf" 
+                position="-2 1 -3" 
+                width="0.3" 
+                height="2" 
+                depth="1" 
+                color="#654321"
+                shadow>
+            </a-box>
+        </a-entity>
+        
+        <!-- Bedroom Furniture -->
+        <a-entity id="bedroom" visible="false">
+            <!-- King Size Bed -->
+            <a-box 
+                id="bed" 
+                position="0 0.4 -3" 
+                width="1.6" 
+                height="0.8" 
+                depth="2" 
+                color="#F4EFE6"
+                shadow>
+            </a-box>
+            
+            <!-- Wardrobe -->
+            <a-box 
+                id="wardrobe" 
+                position="2 1 -3" 
+                width="0.6" 
+                height="2" 
+                depth="1" 
+                color="#8B4513"
+                shadow>
+            </a-box>
+            
+            <!-- Nightstand -->
+            <a-box 
+                id="nightstand" 
+                position="-1 0.4 -2" 
+                width="0.4" 
+                height="0.8" 
+                depth="0.4" 
+                color="#654321"
+                shadow>
+            </a-box>
+            
+            <!-- Dressing Table -->
+            <a-box 
+                id="dressing-table" 
+                position="-2 1 -1" 
+                width="1.2" 
+                height="0.8" 
+                depth="0.5" 
+                color="#DEB887"
+                shadow>
+            </a-box>
+        </a-entity>
+        
+        <!-- Kitchen Furniture -->
+        <a-entity id="kitchen" visible="false">
+            <!-- Kitchen Cabinets -->
+            <a-box 
+                id="kitchen-cabinets" 
+                position="0 1 -3" 
+                width="2" 
+                height="2" 
+                depth="0.6" 
+                color="#F5F5DC"
+                shadow>
+            </a-box>
+            
+            <!-- Cooking Platform -->
+            <a-box 
+                id="stove" 
+                position="0 1 -2.5" 
+                width="0.8" 
+                height="0.1" 
+                depth="0.8" 
+                color="#C0C0C0"
+                shadow>
+            </a-box>
+            
+            <!-- Refrigerator -->
+            <a-box 
+                id="refrigerator" 
+                position="1.5 1 -3" 
+                width="0.6" 
+                height="2" 
+                depth="0.6" 
+                color="#FFFFFF"
+                shadow>
+            </a-box>
+            
+            <!-- Dining Table -->
+            <a-box 
+                id="dining-table" 
+                position="-1.5 0.8 -2" 
+                width="1.8" 
+                height="0.1" 
+                depth="0.9" 
+                color="#8B4513"
+                shadow>
+            </a-box>
+        </a-entity>
+        
+        <!-- Office Furniture -->
+        <a-entity id="office" visible="false">
+            <!-- Executive Desk -->
+            <a-box 
+                id="desk" 
+                position="0 0.8 -2" 
+                width="1.8" 
+                height="0.1" 
+                depth="0.8" 
+                color="#8B4513"
+                shadow>
+            </a-box>
+            
+            <!-- Ergonomic Chair -->
+            <a-box 
+                id="chair" 
+                position="0 0.5 -1" 
+                width="0.5" 
+                height="1" 
+                depth="0.5" 
+                color="#654321"
+                shadow>
+            </a-box>
+            
+            <!-- Bookshelf -->
+            <a-box 
+                id="office-bookshelf" 
+                position="-2 1 -2.5" 
+                width="0.3" 
+                height="2" 
+                depth="0.8" 
+                color="#8B4513"
+                shadow>
+            </a-box>
+            
+            <!-- Filing Cabinet -->
+            <a-box 
+                id="filing-cabinet" 
+                position="2 0.6 -2" 
+                width="0.4" 
+                height="1.3" 
+                depth="0.6" 
+                color="#708090"
+                shadow>
+            </a-box>
+        </a-entity>
+        
+        <!-- Floor Marker for AR Tracking -->
+        <a-marker preset="hiro">
+            <a-plane position="0 0 0" rotation="-90 0 0" width="4" height="4" color="#CCCCCC" opacity="0.1"></a-plane>
+        </a-marker>
+    </a-scene>
+    
+    <!-- Room Info Panel -->
+    <div class="room-info">
+        <h3 id="room-name">Living Room</h3>
+        <p><strong>Style:</strong> <span id="room-style">Modern</span></p>
+        <p><strong>Vastu Zone:</strong> <span id="vastu-zone">North</span></p>
+        <p><strong>Element:</strong> <span id="element">Air</span></p>
+    </div>
+    
+    <!-- Furniture Info -->
+    <div class="furniture-info">
+        <h4 id="furniture-name">Modern Sofa</h4>
+        <p><strong>Material:</strong> <span id="furniture-material">Premium Fabric</span></p>
+        <p><strong>Size:</strong> <span id="furniture-size">2m x 0.8m</span></p>
+        <p><strong>Vastu:</strong> <span id="furniture-vastu">West placement</span></p>
+    </div>
+    
+    <!-- Vastu Indicator -->
+    <div id="vastu-indicator" class="vastu-indicator">
+        <h4>🧘 Vastu Score</h4>
+        <p id="vastu-score">85%</p>
+        <p id="vastu-status">Excellent</p>
+    </div>
+    
+    <!-- AR Controls -->
+    <div class="ar-controls">
+        <button class="ar-btn" onclick="changeRoom()">🏠 Change Room</button>
+        <button class="ar-btn" onclick="changeFurniture()">🪑 Change Item</button>
+        <button class="ar-btn" onclick="changeStyle()">🎨 Change Style</button>
+        <button class="ar-btn" onclick="checkVastu()">🧘 Vastu Check</button>
+        <button class="ar-btn" onclick="takeScreenshot()">📸 Screenshot</button>
+        <button class="ar-btn" onclick="resetView()">🔄 Reset View</button>
+    </div>
+    
+    <script>
+        // REAL HOME DECOR FURNITURE CONFIGURATIONS
+        const roomConfigs = {
+            living: {
+                name: 'Living Room',
+                style: 'Modern',
+                vastuZone: 'North',
+                element: 'Air',
+                score: 85,
+                furniture: [
+                    {
+                        name: 'Modern Sofa',
+                        material: 'Premium Fabric',
+                        size: '2m x 0.8m',
+                        vastu: 'West placement recommended',
+                        element: 'sofa'
+                    },
+                    {
+                        name: 'Coffee Table',
+                        material: 'Solid Wood',
+                        size: '1.2m x 0.6m',
+                        vastu: 'Center of room',
+                        element: 'coffee-table'
+                    },
+                    {
+                        name: 'TV Unit',
+                        material: 'Engineered Wood',
+                        size: '1.8m x 0.4m',
+                        vastu: 'East wall placement',
+                        element: 'tv-unit'
+                    },
+                    {
+                        name: 'Bookshelf',
+                        material: 'Solid Wood',
+                        size: '0.8m x 2m',
+                        vastu: 'North wall placement',
+                        element: 'bookshelf'
+                    }
+                ]
+            },
+            bedroom: {
+                name: 'Bedroom',
+                style: 'Modern',
+                vastuZone: 'Southwest',
+                element: 'Earth',
+                score: 90,
+                furniture: [
+                    {
+                        name: 'King Size Bed',
+                        material: 'Solid Wood with Upholstery',
+                        size: '2m x 1.8m',
+                        vastu: 'Southwest corner, head South',
+                        element: 'bed'
+                    },
+                    {
+                        name: 'Wardrobe',
+                        material: 'Engineered Wood',
+                        size: '2.5m x 0.6m',
+                        vastu: 'North or West wall',
+                        element: 'wardrobe'
+                    },
+                    {
+                        name: 'Nightstand',
+                        material: 'Solid Wood',
+                        size: '0.4m x 0.4m',
+                        vastu: 'Beside bed, West side',
+                        element: 'nightstand'
+                    },
+                    {
+                        name: 'Dressing Table',
+                        material: 'Wood with Mirror',
+                        size: '1.2m x 0.5m',
+                        vastu: 'North wall placement',
+                        element: 'dressing-table'
+                    }
+                ]
+            },
+            kitchen: {
+                name: 'Kitchen',
+                style: 'Modern',
+                vastuZone: 'Southeast',
+                element: 'Fire',
+                score: 88,
+                furniture: [
+                    {
+                        name: 'Kitchen Cabinets',
+                        material: 'Plywood with Finish',
+                        size: '3m x 0.6m',
+                        vastu: 'South and East walls',
+                        element: 'kitchen-cabinets'
+                    },
+                    {
+                        name: 'Cooking Platform',
+                        material: 'Granite Top',
+                        size: '1.2m x 0.6m',
+                        vastu: 'East direction facing',
+                        element: 'stove'
+                    },
+                    {
+                        name: 'Refrigerator',
+                        material: 'Stainless Steel',
+                        size: '0.6m x 0.6m',
+                        vastu: 'Southeast corner',
+                        element: 'refrigerator'
+                    },
+                    {
+                        name: 'Dining Table',
+                        material: 'Solid Wood',
+                        size: '1.8m x 0.9m',
+                        vastu: 'Northwest area',
+                        element: 'dining-table'
+                    }
+                ]
+            },
+            office: {
+                name: 'Home Office',
+                style: 'Modern',
+                vastuZone: 'West',
+                element: 'Air',
+                score: 82,
+                furniture: [
+                    {
+                        name: 'Executive Desk',
+                        material: 'Solid Wood',
+                        size: '1.8m x 0.8m',
+                        vastu: 'East or North facing',
+                        element: 'desk'
+                    },
+                    {
+                        name: 'Ergonomic Chair',
+                        material: 'Mesh and Metal',
+                        size: '0.6m x 0.6m',
+                        vastu: 'Behind desk, facing East',
+                        element: 'chair'
+                    },
+                    {
+                        name: 'Bookshelf',
+                        material: 'Engineered Wood',
+                        size: '0.8m x 2m',
+                        vastu: 'South wall placement',
+                        element: 'office-bookshelf'
+                    },
+                    {
+                        name: 'Filing Cabinet',
+                        material: 'Metal',
+                        size: '0.4m x 1.3m',
+                        vastu: 'Northwest corner',
+                        element: 'filing-cabinet'
+                    }
+                ]
+            }
+        };
+        
+        const styles = ['Modern', 'Traditional', 'Vastu', 'Minimalist'];
+        let currentRoom = 'living';
+        let currentStyleIndex = 0;
+        let currentFurnitureIndex = 0;
+        let cameraStream = null;
+        
+        // Get URL parameters
+        function getUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            return {
+                designId: params.get('designId') || 'demo',
+                roomId: params.get('roomId') || 'demo',
+                userId: params.get('userId') || 'demo',
+                style: params.get('style') || 'modern'
+            };
+        }
+        
+        // Initialize REAL AR
+        function initRealAR() {
+            console.log('🏠 Initializing REAL AR Home Decor with Camera...');
+            
+            const params = getUrlParams();
+            console.log('📱 User parameters:', params);
+            
+            // Hide loading after 1 second
+            setTimeout(() => {
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('instructions').classList.remove('hidden');
+            }, 1000);
+            
+            // Show initial room and furniture
+            showRoom(currentRoom);
+            updateVastuIndicator();
+        }
+        
+        // Start REAL AR with Camera
+        function startRealAR() {
+            console.log('🚀 Starting REAL AR Experience with Camera...');
+            document.getElementById('instructions').classList.add('hidden');
+            
+            // Request camera permissions
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'environment',
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    } 
+                })
+                .then((stream) => {
+                    console.log('✅ Camera access granted - REAL AR started!');
+                    cameraStream = stream;
+                    
+                    // Show camera preview
+                    const videoElement = document.getElementById('camera-preview');
+                    videoElement.srcObject = stream;
+                    videoElement.style.display = 'block';
+                    
+                    // Start AR.js with camera
+                    setTimeout(() => {
+                        console.log('🏠 REAL AR ACTIVE - Place furniture in your actual room!');
+                        // AR.js will handle the rest with the camera
+                    }, 1000);
+                })
+                .catch((error) => {
+                    console.error('❌ Camera access denied:', error);
+                    alert('Camera access is required for REAL AR experience. Please allow camera access to visualize furniture in your room.');
+                });
+            } else {
+                alert('Camera not supported on this device');
+            }
+        }
+        
+        // Show room and furniture
+        function showRoom(roomId) {
+            // Hide all rooms
+            Object.keys(roomConfigs).forEach(room => {
+                document.getElementById(room).setAttribute('visible', 'false');
+            });
+            
+            // Show selected room
+            document.getElementById(roomId).setAttribute('visible', 'true');
+            
+            const room = roomConfigs[roomId];
+            const currentFurniture = room.furniture[currentFurnitureIndex];
+            
+            // Update room info panel
+            document.getElementById('room-name').textContent = room.name;
+            document.getElementById('room-style').textContent = room.style;
+            document.getElementById('vastu-zone').textContent = room.vastuZone;
+            document.getElementById('element').textContent = room.element;
+            
+            // Update furniture info panel
+            document.getElementById('furniture-name').textContent = currentFurniture.name;
+            document.getElementById('furniture-material').textContent = currentFurniture.material;
+            document.getElementById('furniture-size').textContent = currentFurniture.size;
+            document.getElementById('furniture-vastu').textContent = currentFurniture.vastu;
+            
+            console.log(`🏠 Showing ${room.name} - ${currentFurniture.name} in REAL AR`);
+        }
+        
+        // Change room
+        function changeRoom() {
+            const roomKeys = Object.keys(roomConfigs);
+            const currentIndex = roomKeys.indexOf(currentRoom);
+            const nextIndex = (currentIndex + 1) % roomKeys.length;
+            currentRoom = roomKeys[nextIndex];
+            currentFurnitureIndex = 0; // Reset furniture index
+            showRoom(currentRoom);
+            updateVastuIndicator();
+        }
+        
+        // Change furniture
+        function changeFurniture() {
+            const room = roomConfigs[currentRoom];
+            currentFurnitureIndex = (currentFurnitureIndex + 1) % room.furniture.length;
+            showRoom(currentRoom);
+        }
+        
+        // Change style
+        function changeStyle() {
+            currentStyleIndex = (currentStyleIndex + 1) % styles.length;
+            const newStyle = styles[currentStyleIndex];
+            
+            // Update all rooms with new style
+            Object.keys(roomConfigs).forEach(room => {
+                roomConfigs[room].style = newStyle;
+            });
+            
+            // Update current room display
+            document.getElementById('room-style').textContent = newStyle;
+            
+            console.log(`🎨 Changed style to ${newStyle}`);
+        }
+        
+        // Check Vastu
+        function checkVastu() {
+            const room = roomConfigs[currentRoom];
+            const score = room.score + (currentStyleIndex === 2 ? 10 : 0); // Vastu style gets bonus
+            const finalScore = Math.min(score, 100);
+            
+            let status = 'Good';
+            let indicatorClass = 'good';
+            
+            if (finalScore >= 90) {
+                status = 'Excellent';
+                indicatorClass = 'excellent';
+            } else if (finalScore < 80) {
+                status = 'Needs Adjustment';
+                indicatorClass = 'poor';
+            }
+            
+            // Update Vastu indicator
+            const indicator = document.getElementById('vastu-indicator');
+            indicator.className = `vastu-indicator ${indicatorClass}`;
+            document.getElementById('vastu-score').textContent = `${finalScore}%`;
+            document.getElementById('vastu-status').textContent = status;
+            
+            console.log(`🧘 Vastu check: ${finalScore}% - ${status}`);
+        }
+        
+        // Update Vastu indicator
+        function updateVastuIndicator() {
+            checkVastu();
+        }
+        
+        // Take screenshot
+        function takeScreenshot() {
+            try {
+                // Create canvas from video and AR scene
+                const canvas = document.createElement('canvas');
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                const ctx = canvas.getContext('2d');
+                
+                // Draw video frame
+                const video = document.getElementById('camera-preview');
+                if (video && video.readyState === video.HAVE_ENOUGH_DATA) {
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                }
+                
+                // Download screenshot
+                const link = document.createElement('a');
+                const currentFurniture = roomConfigs[currentRoom].furniture[currentFurnitureIndex];
+                link.download = `antaralay-real-ar-${currentRoom}-${currentFurniture.name.replace(/\s+/g, '-')}-${Date.now()}.png`;
+                link.href = canvas.toDataURL();
+                link.click();
+                
+                console.log('📸 REAL AR Screenshot captured');
+            } catch (error) {
+                console.error('❌ Screenshot failed:', error);
+                alert('Screenshot not available on this device');
+            }
+        }
+        
+        // Reset view
+        function resetView() {
+            // Reset AR scene camera
+            const scene = document.getElementById('ar-scene');
+            if (scene && scene.camera) {
+                scene.camera.setAttribute('position', '0 0 0');
+                scene.camera.setAttribute('rotation', '0 0 0');
+            }
+            console.log('🔄 REAL AR view reset');
+        }
+        
+        // Handle device orientation for Vastu
+        if (window.DeviceOrientationEvent) {
+            window.addEventListener('deviceorientation', function(event) {
+                const alpha = event.alpha;
+                if (alpha !== null) {
+                    const room = roomConfigs[currentRoom];
+                    const zoneScore = calculateVastuScore(alpha, room.vastuZone);
+                    
+                    if (zoneScore > 80) {
+                        document.getElementById('vastu-indicator').className = 'vastu-indicator excellent';
+                    } else if (zoneScore > 60) {
+                        document.getElementById('vastu-indicator').className = 'vastu-indicator good';
+                    } else {
+                        document.getElementById('vastu-indicator').className = 'vastu-indicator poor';
+                    }
+                }
+            });
+        }
+        
+        // Calculate Vastu score based on orientation
+        function calculateVastuScore(alpha, recommendedZone) {
+            const zoneAngles = {
+                'North': 0, 'Northeast': 45, 'East': 90,
+                'Southeast': 135, 'South': 180, 'Southwest': 225,
+                'West': 270, 'Northwest': 315
+            };
+            
+            const recommendedAngle = zoneAngles[recommendedZone] || 0;
+            const difference = Math.abs(alpha - recommendedAngle);
+            const normalizedDiff = Math.min(difference, 360 - difference);
+            
+            return Math.max(0, 100 - (normalizedDiff / 180) * 100);
+        }
+        
+        // Initialize on load
+        window.addEventListener('load', initRealAR);
+        
+        // Handle errors gracefully
+        window.addEventListener('error', function(e) {
+            console.error('❌ REAL AR Error:', e.error);
+            alert('REAL AR encountered an error. Please refresh and try again.');
+        });
+        
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+            }
+        });
+    </script>
+</body>
+</html>

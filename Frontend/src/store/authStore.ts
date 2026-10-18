@@ -1,0 +1,174 @@
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import type { User } from 'firebase/auth';
+import { 
+  signInWithGoogle, 
+  logoutUser, 
+  getCurrentUser, 
+  getIdToken 
+} from '../services/auth';
+
+const localDemoAuthEnabled =
+  process.env.NODE_ENV === 'development' &&
+  process.env.NEXT_PUBLIC_ENABLE_DEMO_AUTH === 'true';
+const localDemoToken = 'local-demo-token';
+
+interface AuthState {
+  user: User | null;
+  token: string | null;
+  isLoading: boolean;
+  error: string | null;
+  isAuthenticated: boolean;
+  
+  // Actions
+  setUser: (user: User | null) => void;
+  setToken: (token: string | null) => void;
+  setLoading: (loading: boolean) => void;
+  setError: (error: string | null) => void;
+  
+  signIn: () => Promise<void>;
+  logout: () => Promise<void>;
+  initializeAuth: () => Promise<void>;
+  refreshToken: () => Promise<string | null>;
+}
+
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set, get) => ({
+      user: null,
+      token: null,
+      isLoading: false,
+      error: null,
+      isAuthenticated: false,
+
+      setUser: (user) => set({ user, isAuthenticated: !!user }),
+      setToken: (token) => {
+        set({ token });
+        if (typeof window !== 'undefined') {
+          if (token) {
+            localStorage.setItem('auth_token', token);
+          } else {
+            localStorage.removeItem('auth_token');
+          }
+        }
+      },
+      setLoading: (isLoading) => set({ isLoading }),
+      setError: (error) => set({ error }),
+
+      signIn: async () => {
+        set({ isLoading: true, error: null });
+        if (localDemoAuthEnabled) {
+          localStorage.setItem('auth_token', localDemoToken);
+          set({
+            user: null,
+            token: localDemoToken,
+            isLoading: false,
+            isAuthenticated: true,
+          });
+          return;
+        }
+
+        try {
+          const { user, token } = await signInWithGoogle();
+          set({ user, token, isLoading: false, isAuthenticated: true });
+          localStorage.setItem('auth_token', token);
+        } catch (error) {
+          set({ 
+            error: error instanceof Error ? error.message : 'Sign in failed', 
+            isLoading: false,
+            isAuthenticated: false
+          });
+          throw error;
+        }
+      },
+
+      logout: async () => {
+        set({ isLoading: true });
+        if (localDemoAuthEnabled) {
+          localStorage.removeItem('auth_token');
+          set({ user: null, token: null, isLoading: false, error: null, isAuthenticated: false });
+          return;
+        }
+
+        try {
+          await logoutUser();
+          set({ user: null, token: null, isLoading: false, error: null, isAuthenticated: false });
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('auth_token');
+          }
+        } catch (error) {
+          set({ 
+            error: error instanceof Error ? error.message : 'Logout failed', 
+            isLoading: false,
+            isAuthenticated: false
+          });
+          throw error;
+        }
+      },
+
+      initializeAuth: async () => {
+        if (localDemoAuthEnabled) {
+          localStorage.setItem('auth_token', localDemoToken);
+          set({
+            user: null,
+            token: localDemoToken,
+            isLoading: false,
+            error: null,
+            isAuthenticated: true,
+          });
+          return;
+        }
+
+        set({ isLoading: true });
+        try {
+          const user = await getCurrentUser();
+          if (user) {
+            const token = await getIdToken(user);
+            set({ user, token, isLoading: false, isAuthenticated: true });
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('auth_token', token);
+            }
+          } else {
+            set({ isLoading: false, isAuthenticated: false });
+          }
+        } catch (error) {
+          set({ 
+            error: error instanceof Error ? error.message : 'Auth initialization failed', 
+            isLoading: false,
+            isAuthenticated: false
+          });
+        }
+      },
+
+      refreshToken: async () => {
+        if (localDemoAuthEnabled) {
+          localStorage.setItem('auth_token', localDemoToken);
+          set({ token: localDemoToken });
+          return localDemoToken;
+        }
+
+        const { user } = get();
+        if (user) {
+          try {
+            const token = await getIdToken(user, true);
+            set({ token });
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('auth_token', token);
+            }
+            return token;
+          } catch (error) {
+            console.error('Token refresh failed:', error);
+            return null;
+          }
+        }
+        return null;
+      },
+    }),
+    {
+      name: 'auth-storage',
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({ user: state.user, token: state.token }),
+      skipHydration: true,
+    }
+  )
+);
